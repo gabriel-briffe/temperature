@@ -45,4 +45,4 @@ Offline datasheets / schematics: [resources/boards/](resources/boards/).
 $POV,T,23.52*35
 ```
 
-Once per second. XCSoar InfoBox **Outside air temperature**.
+About every 10 seconds. XCSoar InfoBox **Outside air temperature**.

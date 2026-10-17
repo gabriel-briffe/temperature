@@ -12,7 +12,7 @@ Or PlatformIO **Monitor**. Baud is ignored by USB CDC but 115200 matches XCSoar'
 
 ## 2. What you should see
 
-About once per second:
+About once every 10 seconds:
 
 ```text
 # OAT probe ready - $POV,T for XCSoar OpenVario
@@ -46,6 +46,6 @@ Room-temperature PT1000 is typically roughly **1070-1100 Ohm**, not exactly 1000
 ## Checklist
 
 - [ ] Serial opens
-- [ ] `$POV,T,...` every second
+- [ ] `$POV,T,...` about every 10 seconds
 - [ ] No FAULT lines
 - [ ] Temperature moves when you warm/cool the probe

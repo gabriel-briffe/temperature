@@ -21,7 +21,7 @@ In XCSoar:
 
 1. Edit an InfoBox page.
 2. Add **Outside air temperature** (OAT).
-3. You should see a live degC value updating about once per second.
+3. You should see a live degC value updating about every 10 seconds.
 
 ## If the USB port does not appear
 

@@ -1,6 +1,6 @@
 # 04 - Firmware (flash the XIAO)
 
-Firmware lives at the repo root (`platformio.ini`, `src/main.cpp`). It reads the PT1000 over SPI and prints `$POV,T,...` on USB once per second.
+Firmware lives at the repo root (`platformio.ini`, `src/main.cpp`). It reads the PT1000 over SPI and prints `$POV,T,...` on USB about every 10 seconds.
 
 ## Install PlatformIO
 

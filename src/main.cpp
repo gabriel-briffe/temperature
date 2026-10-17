@@ -6,11 +6,11 @@
  *   - Adafruit MAX31865 PT1000 amp (ADA3648)
  *   - 2-wire PT1000 RTD
  *
- * Emits OpenVario NMEA over USB CDC at 1 Hz:
+ * Emits OpenVario NMEA over USB CDC every 10 s:
  *   $POV,T,<celsius>*CS\r\n
  *
  * XCSoar (Stefly Nav):
- *   Devices → USB serial → driver "OpenVario", baud 115200
+ *   Devices -> USB serial -> driver "OpenVario", baud 115200
  *   Show InfoBox "Outside air temperature"
  */
 
@@ -19,13 +19,13 @@
 #include <SPI.h>
 #include <cstdio>
 
-// --- Wiring (XIAO RP2040 ↔ ADA3648) ---
-//   3V3  → Vin
-//   GND  → GND
-//   D8   → CLK   (SPI SCK)
-//   D9   → SDO   (SPI MISO)
-//   D10  → SDI   (SPI MOSI)
-//   D7   → CS
+// --- Wiring (XIAO RP2040 <-> ADA3648) ---
+//   3V3  -> Vin
+//   GND  -> GND
+//   D8   -> CLK   (SPI SCK)
+//   D9   -> SDO   (SPI MISO)
+//   D10  -> SDI   (SPI MOSI)
+//   D7   -> CS
 //
 // PT1000 2-wire on ADA3648:
 //   One sense wire in either left terminal, the other in either right terminal.
@@ -34,11 +34,12 @@
 
 static constexpr int PIN_CS = D7;
 
-// ADA3648 has a 4300 Ω reference resistor for PT1000.
+// ADA3648 has a 4300  Ohm reference resistor for PT1000.
 static constexpr float RREF = 4300.0f;
 static constexpr float RNOMINAL = 1000.0f;
 
-static constexpr uint32_t EMIT_PERIOD_MS = 1000;
+// OAT changes slowly in flight; 10 s is enough for XCSoar and keeps USB quiet.
+static constexpr uint32_t EMIT_PERIOD_MS = 10000;
 
 Adafruit_MAX31865 rtd(PIN_CS);
 
@@ -90,7 +91,7 @@ void setup() {
     Serial.println(F("# MAX31865 begin() failed"));
   }
 
-  Serial.println(F("# OAT probe ready — $POV,T for XCSoar OpenVario"));
+  Serial.println(F("# OAT probe ready - $POV,T for XCSoar OpenVario"));
 }
 
 void loop() {
