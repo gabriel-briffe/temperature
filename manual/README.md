@@ -33,6 +33,10 @@ Firmware emits `$POV,T,<degC>*CS` over USB. XCSoar driver: **OpenVario**.
 
 Build photos are manufacturer / retailer product pictures. See [images/SOURCES.md](images/SOURCES.md).
 
+## Board docs
+
+Offline datasheets / schematics: [resources/boards/](resources/boards/).
+
 ---
 
 ## Expected result

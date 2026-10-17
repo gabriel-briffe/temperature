@@ -10,12 +10,16 @@
 
 ## Manufacturer docs
 
-| Resource | URL |
-|----------|-----|
+Offline copies: [boards/](boards/)
+
+| Resource | Local / URL |
+|----------|-------------|
+| XIAO RP2040 schematic | [boards/XIAO-RP2040-v1.22-schematic.pdf](boards/XIAO-RP2040-v1.22-schematic.pdf) |
+| RP2040 datasheet | [boards/RP2040-datasheet.pdf](boards/RP2040-datasheet.pdf) |
+| Adafruit MAX31865 guide | [boards/adafruit-max31865-guide.pdf](boards/adafruit-max31865-guide.pdf) |
 | Seeed XIAO RP2040 wiki | https://wiki.seeedstudio.com/XIAO-RP2040/ |
 | Adafruit ADA3648 product | https://www.adafruit.com/product/3648 |
-| Adafruit MAX31865 guide (2/3/4 wire) | https://learn.adafruit.com/adafruit-max31865-rtd-pt100-amplifier/rtd-wiring-and-config |
-| MAX31865 datasheet | https://www.analog.com/media/en/technical-documentation/data-sheets/MAX31865.pdf |
+| MAX31865 datasheet (Analog) | https://www.analog.com/media/en/technical-documentation/data-sheets/MAX31865.pdf |
 
 ## Software
 
