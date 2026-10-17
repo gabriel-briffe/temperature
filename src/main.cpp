@@ -9,7 +9,9 @@
  * Emits OpenVario NMEA over USB CDC every 10 s:
  *   $POV,T,<celsius>*CS\r\n
  *
- * XCSoar (Stefly Nav):
+ * Between samples: RTD bias off, LEDs off, MCU sleeps (USB stays up for Stefly).
+ *
+ * XCSoar:
  *   Devices -> USB serial -> driver "OpenVario", baud 115200
  *   Show InfoBox "Outside air temperature"
  */
@@ -34,11 +36,11 @@
 
 static constexpr int PIN_CS = D7;
 
-// ADA3648 has a 4300  Ohm reference resistor for PT1000.
+// ADA3648 has a 4300 Ohm reference resistor for PT1000.
 static constexpr float RREF = 4300.0f;
 static constexpr float RNOMINAL = 1000.0f;
 
-// OAT changes slowly in flight; 10 s is enough for XCSoar and keeps USB quiet.
+// OAT changes slowly in flight; 10 s is enough for XCSoar.
 static constexpr uint32_t EMIT_PERIOD_MS = 10000;
 
 Adafruit_MAX31865 rtd(PIN_CS);
@@ -81,45 +83,68 @@ static void reportFault(uint8_t fault) {
   }
 }
 
+static void ledsOff() {
+  // XIAO RGB are active-low; drive high to extinguish.
+  pinMode(PIN_LED_R, OUTPUT);
+  pinMode(PIN_LED_G, OUTPUT);
+  pinMode(PIN_LED_B, OUTPUT);
+  digitalWrite(PIN_LED_R, HIGH);
+  digitalWrite(PIN_LED_G, HIGH);
+  digitalWrite(PIN_LED_B, HIGH);
+
+  // Cut power to the onboard NeoPixel.
+  pinMode(NEOPIXEL_POWER, OUTPUT);
+  digitalWrite(NEOPIXEL_POWER, LOW);
+}
+
+static void sensorSleep() {
+  rtd.enableBias(false);
+  rtd.autoConvert(false);
+}
+
 void setup() {
+  ledsOff();
+
   Serial.begin(115200);
-  // USB CDC: wait a bit so a host monitor can attach; Stefly does not need this.
   delay(500);
 
   SPI.begin();
   if (!rtd.begin(MAX31865_2WIRE)) {
     Serial.println(F("# MAX31865 begin() failed"));
   }
+  sensorSleep();
 
   Serial.println(F("# OAT probe ready - $POV,T for XCSoar OpenVario"));
 }
 
 void loop() {
-  static uint32_t last_emit_ms = 0;
-  const uint32_t now = millis();
-  if (now - last_emit_ms < EMIT_PERIOD_MS) {
-    return;
-  }
-  last_emit_ms = now;
+  const uint32_t started_ms = millis();
 
+  // readRTD() briefly enables bias, then turns it off again.
   const uint16_t raw = rtd.readRTD();
   const uint8_t fault = rtd.readFault();
   if (fault) {
     reportFault(fault);
     rtd.clearFault();
-    return;
+    sensorSleep();
+  } else {
+    const float ratio = raw / 32768.0f;
+    const float resistance = RREF * ratio;
+    const float celsius = rtd.temperature(RNOMINAL, RREF);
+
+    Serial.print(F("# R="));
+    Serial.print(resistance, 2);
+    Serial.print(F(" Ohm  T="));
+    Serial.print(celsius, 2);
+    Serial.println(F(" C"));
+
+    emitOat(celsius);
+    sensorSleep();
   }
 
-  const float ratio = raw / 32768.0f;
-  const float resistance = RREF * ratio;
-  const float celsius = rtd.temperature(RNOMINAL, RREF);
-
-  // Debug line for bench testing (XCSoar ignores lines that are not NMEA).
-  Serial.print(F("# R="));
-  Serial.print(resistance, 2);
-  Serial.print(F(" Ohm  T="));
-  Serial.print(celsius, 2);
-  Serial.println(F(" C"));
-
-  emitOat(celsius);
+  // Sleep the rest of the period (idle CPU; USB CDC stays connected).
+  const uint32_t used_ms = millis() - started_ms;
+  if (used_ms < EMIT_PERIOD_MS) {
+    delay(EMIT_PERIOD_MS - used_ms);
+  }
 }
