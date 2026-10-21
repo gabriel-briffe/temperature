@@ -15,14 +15,16 @@ Each lead wire adds resistance. The amp cannot cancel that in 2-wire mode, so th
 
 Example: 2 Ohm total lead resistance on a PT1000 ~ a few tenths of a degC (order of magnitude; depends on cable).
 
-## Ice-bath check (optional)
+## Ice-bath check
 
-1. Mix crushed ice + a little water; wait until stable.
+1. Mix ice cubes + a little water; wait until stable.
 2. Immerse **only the probe tip** (not the amplifier).
 3. Note the reported temperature `T_ice`.
-4. Ideal is 0.0 C. Offset ~ `T_ice`.
+4. Ideal is 0.0 C.
 
-To apply a fixed offset in firmware later, subtract that constant in `emitOat()`.
+This build: glass full of ice cubes, tip only, **0.1 C**. Class B at 0 C is +/-0.3 C, so I left firmware uncorrected.
+
+To apply a fixed offset later, subtract that constant in `emitOat()`.
 
 ## Mechanical checklist for flight
 

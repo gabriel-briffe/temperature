@@ -6,13 +6,15 @@ Kit contents (product photo):
 
 Do this **before** wiring to the XIAO.
 
-## 1. Solder the 8-pin header
+## 1. Logic pins — I skipped the header
 
-Solder the male header to the bottom row: `Vin`, `3Vo`, `GND`, `CLK`, `SDO`, `SDI`, `CS`, `RDY`.
+I did not solder the 8-pin male header. I soldered the PTFE wires straight into the holes: `Vin`, `GND`, `CLK`, `SDO`, `SDI`, `CS`. Leave `3Vo` and `RDY` empty.
 
-## 2. Solder the RTD terminal blocks
+A header works too if you prefer Dupont jumpers for a first test.
 
-Solder both 2-pin screw terminals onto the top RTD holes (`F-` / `RTD-` / `RTD+` / `F+`).
+## 2. RTD terminal blocks
+
+On my board the two 2-pin screw terminals were **already soldered**. If yours are loose in the bag, solder them onto the top RTD holes (`F-` / `RTD-` / `RTD+` / `F+`).
 
 ## 3. Configure for 2-wire (critical)
 
@@ -29,7 +31,7 @@ Board defaults to 4-wire. For a 2-wire probe:
 
 ## Checklist
 
-- [ ] Header soldered
-- [ ] Terminal blocks soldered
+- [ ] Six logic wires in the holes (or a header)
+- [ ] Terminal blocks present
 - [ ] Both 2-wire jumpers closed
 - [ ] Probe clamped left + right

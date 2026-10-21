@@ -54,8 +54,12 @@ static uint8_t nmeaChecksum(const char *body) {
 }
 
 static void emitOat(float celsius) {
+  // dtostrf: newlib-nano printf has no %f unless extra float support is linked.
+  char temp[12];
+  dtostrf(static_cast<double>(celsius), 0, 2, temp);
+
   char body[32];
-  snprintf(body, sizeof(body), "POV,T,%.2f", static_cast<double>(celsius));
+  snprintf(body, sizeof(body), "POV,T,%s", temp);
 
   char line[40];
   snprintf(line, sizeof(line), "$%s*%02X\r\n", body, nmeaChecksum(body));

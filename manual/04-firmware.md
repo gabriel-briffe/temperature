@@ -23,12 +23,18 @@ pio run
 
 ## Put the XIAO in upload mode (if needed)
 
+Plug the XIAO into the **computer** first (USB-C data cable), not the Stefly.
+
+If the board is blank or upload cannot find a port:
+
 1. Hold the **BOOT** button.
-2. Press and release **RESET** (or plug USB while holding BOOT).
+2. Press and release **RESET** (or unplug, hold BOOT, plug USB back in).
 3. Release **BOOT**.
-4. A USB drive named something like `RPI-RP2` may appear - PlatformIO can also upload via UF2/serial automatically.
+4. A USB drive named something like `RPI-RP2` should appear. Then upload.
 
 ## Build & upload
+
+From the **repo root** (the folder that contains `platformio.ini`, not `manual/`):
 
 ```bash
 pio run -t upload
@@ -50,15 +56,3 @@ so Stefly / XCSoar Android recognize the device.
 Pulled automatically via `lib_deps`:
 
 - Adafruit MAX31865 library
-
-No manual Arduino Library Manager steps if you use PlatformIO.
-
-## Arduino IDE (alternative)
-
-If you prefer Arduino IDE instead of PlatformIO:
-
-1. Install **Earle Philhower** Arduino-Pico core / Seeed XIAO RP2040 board package.
-2. Install library **Adafruit MAX31865**.
-3. Open `src/main.cpp` (rename/copy to `.ino` sketch if required).
-4. Board: **Seeed XIAO RP2040**.
-5. Set USB VID/PID to `2E8A` / `000A` if your board package exposes those options (otherwise prefer PlatformIO for Stefly compatibility).

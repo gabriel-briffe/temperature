@@ -1,5 +1,7 @@
 # 06 - XCSoar on Stefly Nav
 
+Tested: **XCSoar Mac** and **XCSoar Android** (Stefly). Not tried yet on other platforms.
+
 ## Hardware
 
 1. Power off or leave Stefly on - either works.

@@ -2,10 +2,12 @@
 
 ## Example retailer (France)
 
-| Item | Example page |
-|------|--------------|
+| Item | Page |
+|------|------|
 | XIAO RP2040 | https://www.gotronic.fr/art-carte-xiao-rp2040-34095.htm |
 | ADA3648 PT1000 amp | https://www.gotronic.fr/art-amplificateur-pour-pt1000-ada3648-27968.htm |
+| iOVEO PT1000 036HS02201 | https://www.amazon.fr/dp/B088V83LVY |
+| PTFE 24 AWG UL1213 | https://errebishop.com/fr/cordons-monobrin/7499-cable-style-1213-24-awg-teflon-ptfe-600v-jaune.html |
 | Gotronic | https://www.gotronic.fr/ |
 
 ## Manufacturer docs

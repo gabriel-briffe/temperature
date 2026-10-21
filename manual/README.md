@@ -1,12 +1,12 @@
-# OAT probe - build manual
+# OAT probe - build notes
 
-Outside air temperature (OAT) probe for **XCSoar** (e.g. on a Stefly Nav or similar Android device).
+Workshop steps for the USB OAT probe on a **Stefly Nav** / XCSoar. Story, costs, and why this stack: [../README.md](../README.md).
 
-Hardware:
+Hardware I used:
 
 - Seeed **XIAO RP2040**
 - Adafruit **ADA3648** PT1000 amplifier
-- 2-wire **PT1000** probe
+- 2-wire class B **PT1000** (iOVEO 1 m)
 
 Firmware emits `$POV,T,<degC>*CS` over USB. XCSoar driver: **OpenVario**.
 
@@ -20,7 +20,7 @@ Firmware emits `$POV,T,<degC>*CS` over USB. XCSoar driver: **OpenVario**.
 |------|----------|------|
 | 0 | [00 - Overview](00-overview.md) | Understand the system |
 | 1 | [01 - Bill of materials](01-bom.md) | Gather the parts |
-| 2 | [02 - Prepare the amplifier](02-prepare-amplifier.md) | Solder headers + 2-wire jumpers |
+| 2 | [02 - Prepare the amplifier](02-prepare-amplifier.md) | Wires into holes + 2-wire jumpers |
 | 3 | [03 - Wiring](03-wiring.md) | Connect XIAO and ADA3648 |
 | 4 | [04 - Firmware](04-firmware.md) | Install tools and flash |
 | 5 | [05 - Bench test](05-bench-test.md) | Verify NMEA on a computer |
