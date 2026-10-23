@@ -12,7 +12,7 @@ Or PlatformIO **Monitor**. Baud is ignored by USB CDC but 115200 matches XCSoar'
 
 ## 2. What you should see
 
-About once every 10 seconds:
+After power the serial port is quiet for **2 minutes**, then about once every 10 seconds:
 
 ```text
 # OAT probe ready - $POV,T for XCSoar OpenVario

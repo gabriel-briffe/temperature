@@ -18,7 +18,7 @@ So I used a 2-wire **PT1000**, a small Adafruit **MAX31865** amp, and a Seeed **
 
 **ADA3648 (MAX31865).** The analog part is the hard part. This board is made for PT1000 (4.3 kOhm reference). Close the two "2 Wire" solder jumpers, screw the probe in, talk SPI. I soldered the PTFE straight into the logic holes (no 8-pin header). The RTD screw terminals were already on the board.
 
-**XIAO RP2040.** Tiny, USB-C, cheap, Arduino. Firmware pretends to be a USB serial gadget XCSoar Android already allows (`2E8A:000A`). Plug USB-C to USB-A into the Stefly, driver **OpenVario**, baud **115200**, add the OAT InfoBox.
+**XIAO RP2040.** Tiny, USB-C, cheap, Arduino. Firmware pretends to be a USB serial gadget XCSoar Android already allows (`2E8A:000A`). It stays silent on USB for **2 minutes** after power so the Stefly can boot with the cable already in. Then: driver **OpenVario**, baud **115200**, InfoBox **Outside air temperature**.
 
 Between the two boards I used yellow **24 AWG PTFE** (UL 1213) from [Errebi](https://errebishop.com/fr/cordons-monobrin/7499-cable-style-1213-24-awg-teflon-ptfe-600v-jaune.html). Heat shrink over the joints (not counted in the price).
 

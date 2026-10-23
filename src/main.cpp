@@ -19,6 +19,7 @@
 #include <Adafruit_MAX31865.h>
 #include <Arduino.h>
 #include <SPI.h>
+#include <USB.h>
 #include <cstdio>
 
 // --- Wiring (XIAO RP2040 <-> ADA3648) ---
@@ -42,6 +43,9 @@ static constexpr float RNOMINAL = 1000.0f;
 
 // OAT changes slowly in flight; 10 s is enough for XCSoar.
 static constexpr uint32_t EMIT_PERIOD_MS = 10000;
+
+// Stay off USB until Android has finished booting (Stefly, always-plugged).
+static constexpr uint32_t USB_START_DELAY_MS = 2 * 60 * 1000;
 
 Adafruit_MAX31865 rtd(PIN_CS);
 
@@ -109,6 +113,9 @@ static void sensorSleep() {
 void setup() {
   ledsOff();
 
+  // Core may have already touched USB; drop it so Stefly is not talking serial yet.
+  USB.disconnect();
+  delay(USB_START_DELAY_MS);
   Serial.begin(115200);
   delay(500);
 

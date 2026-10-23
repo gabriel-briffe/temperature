@@ -25,7 +25,7 @@ pio run
 
 Plug the XIAO into the **computer** first (USB-C data cable), not the Stefly.
 
-If the board is blank or upload cannot find a port:
+The probe stays off USB for **2 minutes** after power so a Stefly can boot with the cable already plugged. For a flash, use BOOTSEL (below) or wait until the serial port appears.
 
 1. Hold the **BOOT** button.
 2. Press and release **RESET** (or unplug, hold BOOT, plug USB back in).
