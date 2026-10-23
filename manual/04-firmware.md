@@ -1,6 +1,6 @@
 # 04 - Firmware (flash the XIAO)
 
-Firmware lives at the repo root (`platformio.ini`, `src/main.cpp`). It reads the PT1000 over SPI and prints `$POV,T,...` on USB about every 10 seconds.
+Firmware lives at the repo root (`platformio.ini`, `src/main.cpp`). This `hid` branch sends a vendor HID report every 10 seconds (no `$POV,T` serial port).
 
 ## Install PlatformIO
 
@@ -25,7 +25,7 @@ pio run
 
 Plug the XIAO into the **computer** first (USB-C data cable), not the Stefly.
 
-The probe stays off USB for **2 minutes** after power so a Stefly can boot with the cable already plugged. For a flash, use BOOTSEL (below) or wait until the serial port appears.
+There is no USB serial port on this branch. Use BOOTSEL to flash.
 
 1. Hold the **BOOT** button.
 2. Press and release **RESET** (or unplug, hold BOOT, plug USB back in).

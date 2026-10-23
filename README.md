@@ -2,13 +2,9 @@
 
 I wanted a temperature probe for the Stefly Nav for winter flights. Here is a solution that works so far.
 
-XCSoar already knows how to show **Outside air temperature**. It just needs a USB device that speaks OpenVario:
+This **`hid` branch** sends temperature as a vendor **HID** report (not `$POV,T` serial). Android can boot with the cable already in. Stock XCSoar will not see OAT — a fork has to read the report. Details: [docs/hid-xcsoar.md](docs/hid-xcsoar.md).
 
-```text
-$POV,T,15.50*32
-```
-
-So I used a 2-wire **PT1000**, a small Adafruit **MAX31865** amp, and a Seeed **XIAO RP2040** (Arduino-compatible) that sends that sentence over USB every 10 seconds.
+`main` still speaks OpenVario serial (`$POV,T`), with a 2 minute USB delay.
 
 ![Parts](manual/images/parts-gotronic.jpg)
 
@@ -18,7 +14,7 @@ So I used a 2-wire **PT1000**, a small Adafruit **MAX31865** amp, and a Seeed **
 
 **ADA3648 (MAX31865).** The analog part is the hard part. This board is made for PT1000 (4.3 kOhm reference). Close the two "2 Wire" solder jumpers, screw the probe in, talk SPI. I soldered the PTFE straight into the logic holes (no 8-pin header). The RTD screw terminals were already on the board.
 
-**XIAO RP2040.** Tiny, USB-C, cheap, Arduino. Firmware pretends to be a USB serial gadget XCSoar Android already allows (`2E8A:000A`). It stays silent on USB for **2 minutes** after power so the Stefly can boot with the cable already in. Then: driver **OpenVario**, baud **115200**, InfoBox **Outside air temperature**.
+**XIAO RP2040.** Tiny, USB-C, cheap, Arduino. This branch is vendor HID `2E8A:0A01` (not Pico serial `000A`). It enumerates immediately. Sensor still read every 10 s.
 
 Between the two boards I used yellow **24 AWG PTFE** (UL 1213) from [Errebi](https://errebishop.com/fr/cordons-monobrin/7499-cable-style-1213-24-awg-teflon-ptfe-600v-jaune.html). Heat shrink over the joints (not counted in the price).
 
@@ -48,11 +44,11 @@ This is a cockpit gadget, not a certified instrument. Offset is small enough tha
 
 Step-by-step notes I used: **[manual/README.md](manual/README.md)**.
 
-From the repo root:
+From the repo root (BOOTSEL to flash; there is no serial port):
 
 ```bash
 pio run -t upload
-pio device monitor -b 115200
+python3 tools/read_oat_hid.py
 ```
 
-Firmware is `src/main.cpp`. XCSoar on Stefly: USB serial -> **OpenVario** -> InfoBox **Outside air temperature**.
+Firmware is `src/main.cpp`. XCSoar fork: HID driver, see [docs/hid-xcsoar.md](docs/hid-xcsoar.md).

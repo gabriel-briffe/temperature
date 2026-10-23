@@ -12,7 +12,13 @@ Or PlatformIO **Monitor**. Baud is ignored by USB CDC but 115200 matches XCSoar'
 
 ## 2. What you should see
 
-After power the serial port is quiet for **2 minutes**, then about once every 10 seconds:
+This `hid` branch has no serial NMEA. On a Mac:
+
+```bash
+python3 tools/read_oat_hid.py
+```
+
+About once every 10 seconds you should see `T=... C  status=0`. The old serial monitor text below is for the `main` (CDC) firmware only.
 
 ```text
 # OAT probe ready - $POV,T for XCSoar OpenVario

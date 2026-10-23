@@ -4,7 +4,7 @@ Tested: **XCSoar Mac** and **XCSoar on an Android phone** (USB-C to USB-C), and 
 
 ## Hardware
 
-Leave the probe plugged (rear **USB-A**, USB-C to USB-A cable). It does not talk USB for **2 minutes** after the panel gets power, then the serial port appears.
+Leave the probe plugged (rear **USB-A**, USB-C to USB-A cable). HID enumerates immediately. Stock XCSoar OpenVario will not see it — use the HID driver in [docs/hid-xcsoar.md](../docs/hid-xcsoar.md).
 
 1. Power off or leave Stefly on - either works.
 2. Android may ask to open XCSoar / allow USB - accept.
