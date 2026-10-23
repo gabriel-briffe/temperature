@@ -1,6 +1,6 @@
 # 06 - XCSoar on Stefly Nav
 
-Tested: **XCSoar Mac** and **XCSoar on an Android phone**, both with a USB-C to USB-C cable. Not tried yet on Stefly USB-A or other platforms.
+Tested: **XCSoar Mac** and **XCSoar on an Android phone** (USB-C to USB-C), and **XCSoar on Stefly**. Not tried yet on other platforms.
 
 ## Hardware
 

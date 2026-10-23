@@ -38,7 +38,7 @@ Not in that number: soldering iron, solder, heat shrink, USB-C to USB-A data cab
 
 ## Does it work?
 
-Yes. I have seen live OAT in **XCSoar on Mac** and **XCSoar on an Android phone**, both with a **USB-C to USB-C** cable. Not tested yet on other platforms (Windows, iOS, Linux, Kobo, Stefly USB-A, …).
+Yes. I have seen live OAT in **XCSoar on Mac**, **XCSoar on an Android phone** (USB-C to USB-C), and **XCSoar on Stefly**. Not tested yet on other platforms (Windows, iOS, Linux, Kobo, …).
 
 Ice-cube glass (probe tip only): **0.1 C**. Room air was about 15.5 C / 1060 Ohm, which is what a PT1000 should read.
 
