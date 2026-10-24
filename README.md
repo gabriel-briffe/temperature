@@ -51,4 +51,10 @@ pio run -t upload
 python3 tools/read_oat_hid.py
 ```
 
+Desk test without the board (same 4-byte report over TCP):
+
+```bash
+python3 tools/emulate_oat_hid.py --tcp
+```
+
 Firmware is `src/main.cpp`. XCSoar fork: HID driver, see [docs/hid-xcsoar.md](docs/hid-xcsoar.md).

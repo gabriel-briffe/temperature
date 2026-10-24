@@ -7,3 +7,5 @@
 
 __pycache__/
 *.pyc
+tools/emulate_oat_hid
+tools/emulate_oat_hid

@@ -35,10 +35,26 @@ On fault, status is `1`. Temperature is the last good value (or 0 if none yet). 
 3. **Device list** — new driver name, e.g. "OAT HID". No baud.
 4. **InfoBox** — unchanged: Outside air temperature.
 
-Mac check without XCSoar:
+## Mac emulator (no board)
+
+macOS will not let a normal program pretend to be a USB HID gadget (Apple entitlement `com.apple.developer.hid.virtual.device`). So the desk test sends the **same 4 bytes** over TCP:
 
 ```bash
-python3 tools/read_oat_hid.py
+python3 tools/emulate_oat_hid.py --tcp
 ```
 
-(needs `pip install hidapi`)
+Listens on `127.0.0.1:4354`. Each message is exactly the HID report (`01 .. .. 00`). Temperature walks around 15 C.
+
+In the XCSoar fork, for Mac desk testing, open that TCP socket and parse it with the same HID decoder (do not use OpenVario / `$POV`). On the Stefly / real XIAO, use USB HID `2E8A:0A01`.
+
+Check the bytes without XCSoar:
+
+```bash
+python3 -c 'import socket,struct,time
+s=socket.create_connection(("127.0.0.1",4354))
+while True:
+    b=s.recv(4)
+    if len(b)<4: break
+    rid,t,st=struct.unpack("<BhB", b)
+    print(rid, t/100, st)'
+```
