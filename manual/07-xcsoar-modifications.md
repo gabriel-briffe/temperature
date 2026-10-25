@@ -1,6 +1,6 @@
-# 06 - XCSoar modifications
+# 07 - XCSoar modifications
 
-Stock XCSoar cannot read this probe. This step explains what I changed in XCSoar and where to find it.
+Option 2 only. Stock XCSoar cannot read the HID probe. This step explains what I changed in XCSoar and where to find it.
 
 ## Why stock XCSoar does not work
 
@@ -19,7 +19,7 @@ XCSoar's USB serial code only claims serial-type interfaces from a list of known
 
 ## Why a new driver
 
-The old firmware sent NMEA text (`$POV,T,...`) and XCSoar's OpenVario driver read it. That is gone.
+Option 1 sends NMEA text (`$POV,T,...`) and XCSoar's OpenVario driver reads it. Option 2 does not.
 
 Now the probe sends a 4-byte HID report. It refreshes it every 10 seconds. The report holds a report ID, the temperature in hundredths of a degree C, and a status byte. XCSoar has to read that report, decode the bytes, and check the status. No existing driver does that, so I wrote one: **OatHid**.
 

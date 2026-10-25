@@ -1,8 +1,8 @@
 # HID OAT for an XCSoar fork
 
-This `hid` branch does **not** speak `$POV,T` serial. The XIAO is a vendor HID device from power-on (same USB family as the Stefly stick, not a mouse).
+Option 2 firmware (`firmware/hid/`) does **not** speak `$POV,T` serial. The XIAO is a vendor HID device from power-on (same USB family as the Stefly stick, not a mouse).
 
-Stock XCSoar OpenVario will not see a temperature. Your fork has to read the report below.
+Stock XCSoar OpenVario will not see a temperature. XCSoar has to read the report below. The patch that does it is in [../xcsoar/](../xcsoar/).
 
 ## USB identity
 

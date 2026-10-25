@@ -35,7 +35,8 @@ Offline copies: [boards/](boards/)
 
 | Path | Role |
 |------|------|
-| `../platformio.ini` | Board, USB VID/PID, libraries |
-| `../src/main.cpp` | Firmware |
+| `../../firmware/serial/` | Option 1 firmware (`platformio.ini`, `src/main.cpp`) |
+| `../../firmware/hid/` | Option 2 firmware (`platformio.ini`, `src/main.cpp`) |
+| `../../xcsoar/` | Option 2 XCSoar patch |
 | `../manual/` | This build manual |
 | `images/SOURCES.md` | Photo credits |

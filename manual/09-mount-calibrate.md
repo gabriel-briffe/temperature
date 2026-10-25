@@ -1,4 +1,4 @@
-# 08 - Mount & calibrate
+# 09 - Mount & calibrate
 
 ## Probe placement (soaring)
 
@@ -24,12 +24,12 @@ Example: 2 Ohm total lead resistance on a PT1000 ~ a few tenths of a degC (order
 
 This build: glass full of ice cubes, tip only, **0.1 C**. Class B at 0 C is +/-0.3 C, so I left firmware uncorrected.
 
-To apply a fixed offset later, subtract that constant in `emitOat()`.
+To apply a fixed offset later, subtract that constant before the value is sent: `emitOat()` in `firmware/serial/src/main.cpp`, `emitHid()` in `firmware/hid/src/main.cpp`.
 
 ## Mechanical checklist for flight
 
 - [ ] Probe secure, tip in free air
 - [ ] Cable secured
 - [ ] USB cable strain-relieved at Stefly
-- [ ] Bench `$POV,T` still good after final cable lengths
+- [ ] Bench test (05) still good after final cable lengths
 - [ ] OAT InfoBox verified on the ground before takeoff

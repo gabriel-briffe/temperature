@@ -1,10 +1,21 @@
 # USB OAT probe for Stefly / XCSoar
 
-I wanted a temperature probe for the Stefly Nav for winter flights. Here is a solution that works so far.
+I wanted a temperature probe for the Stefly Nav for winter flights. Same hardware, two ways to talk to XCSoar. Pick one.
 
-This **`hid` branch** sends temperature as a vendor **HID** report (not `$POV,T` serial). Android can boot with the cable already in. Stock XCSoar will not see OAT — a fork has to read the report. Details: [docs/hid-xcsoar.md](docs/hid-xcsoar.md).
+## Pick an option
 
-`main` still speaks OpenVario serial (`$POV,T`), with a 2 minute USB delay.
+| | Option 1 - serial | Option 2 - HID |
+|---|---|---|
+| XCSoar | Stock XCSoar, no changes | Modified XCSoar (patch in [xcsoar/](xcsoar/)) |
+| USB identity | USB serial `2E8A:000A` | Vendor HID `2E8A:0A01` |
+| Data | `$POV,T` at 115200, driver **OpenVario** | 4-byte HID report, driver **OAT HID** |
+| Stefly boot | Android does not finish booting with the probe plugged. Plug it **after** boot. | Probe stays plugged. Boots fine. |
+| Firmware | [firmware/serial/](firmware/serial/) | [firmware/hid/](firmware/hid/) |
+
+- **Option 1** if you want stock XCSoar and don't mind plugging the probe after Android has booted. The firmware waits 2 minutes before it starts USB, to let Stefly boot with the probe plugged. I have **not tested** that delay.
+- **Option 2** if you want the probe plugged in all the time. You need an XCSoar build with the HID driver: [docs/hid-xcsoar.md](docs/hid-xcsoar.md) and [manual/07-xcsoar-modifications.md](manual/07-xcsoar-modifications.md).
+
+Step-by-step for both: **[manual/README.md](manual/README.md)**.
 
 ![Parts](manual/images/parts-gotronic.jpg)
 
@@ -14,7 +25,7 @@ This **`hid` branch** sends temperature as a vendor **HID** report (not `$POV,T`
 
 **ADA3648 (MAX31865).** The analog part is the hard part. This board is made for PT1000 (4.3 kOhm reference). Close the two "2 Wire" solder jumpers, screw the probe in, talk SPI. I soldered the PTFE straight into the logic holes (no 8-pin header). The RTD screw terminals were already on the board.
 
-**XIAO RP2040.** Tiny, USB-C, cheap, Arduino. This branch is vendor HID `2E8A:0A01` (not Pico serial `000A`). It enumerates immediately. Sensor still read every 10 s.
+**XIAO RP2040.** Tiny, USB-C, cheap, Arduino. Option 1 makes it a USB serial device (`2E8A:000A`). Option 2 makes it a vendor HID device (`2E8A:0A01`). Either way the sensor is read every 10 s.
 
 Between the two boards I used yellow **24 AWG PTFE** (UL 1213) from [Errebi](https://errebishop.com/fr/cordons-monobrin/7499-cable-style-1213-24-awg-teflon-ptfe-600v-jaune.html). Heat shrink over the joints (not counted in the price).
 
@@ -44,17 +55,18 @@ This is a cockpit gadget, not a certified instrument. Offset is small enough tha
 
 Step-by-step notes I used: **[manual/README.md](manual/README.md)**.
 
-From the repo root (BOOTSEL to flash; there is no serial port):
+From the repo root. Option 1:
 
 ```bash
-pio run -t upload
+pio run -d firmware/serial -t upload
+pio device monitor -b 115200
+```
+
+Option 2 (BOOTSEL to flash; there is no serial port):
+
+```bash
+pio run -d firmware/hid -t upload
 python3 tools/read_oat_hid.py
 ```
 
-Desk test without the board (same 4-byte report over TCP):
-
-```bash
-python3 tools/emulate_oat_hid.py --tcp
-```
-
-Firmware is `src/main.cpp`. XCSoar fork: HID driver, see [docs/hid-xcsoar.md](docs/hid-xcsoar.md).
+Desk tests without the board: `tools/emulate_oat.py` sends `$POV,T` over UDP 4353 (option 1). `tools/emulate_oat_hid.py --tcp` sends the HID report over TCP 4354 (option 2).
