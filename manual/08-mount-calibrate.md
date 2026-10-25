@@ -1,4 +1,4 @@
-# 07 - Mount & calibrate
+# 08 - Mount & calibrate
 
 ## Probe placement (soaring)
 

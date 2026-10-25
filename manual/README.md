@@ -23,9 +23,10 @@ Firmware emits `$POV,T,<degC>*CS` over USB. XCSoar driver: **OpenVario**.
 | 2 | [02 - Prepare the amplifier](02-prepare-amplifier.md) | Wires into holes + 2-wire jumpers |
 | 3 | [03 - Wiring](03-wiring.md) | Connect XIAO and ADA3648 |
 | 4 | [04 - Firmware](04-firmware.md) | Install tools and flash |
-| 5 | [05 - Bench test](05-bench-test.md) | Verify NMEA on a computer |
-| 6 | [06 - XCSoar setup](06-xcsoar-stefly.md) | Configure the device and show OAT |
-| 7 | [07 - Mount & calibrate](07-mount-calibrate.md) | Install in the glider |
+| 5 | [05 - Bench test](05-bench-test.md) | Verify HID reports on a computer |
+| 6 | [06 - XCSoar modifications](06-xcsoar-modifications.md) | What XCSoar needs to read the HID probe |
+| 7 | [07 - XCSoar setup](07-xcsoar-stefly.md) | Configure the device and show OAT |
+| 8 | [08 - Mount & calibrate](08-mount-calibrate.md) | Install in the glider |
 
 ---
 
