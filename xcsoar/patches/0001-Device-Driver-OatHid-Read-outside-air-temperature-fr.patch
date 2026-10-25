@@ -1,0 +1,885 @@
+From 1719b25cc2d7736e3319d404824945bf38d51d4a Mon Sep 17 00:00:00 2001
+From: Gabriel Briffe <10479082+gabriel-briffe@users.noreply.github.com>
+Date: Sun, 25 Oct 2026 17:40:25 +0100
+Subject: [PATCH] Device/Driver/OatHid: Read outside air temperature from the
+ HID probe
+
+The probe's HID identity (2E8A:0A01) is not a serial port, so Android
+opens it as USB HID and the OAT HID driver. A desk TCP client on port
+4354 feeds the same four-byte report. OpenVario $POV,T is unchanged.
+---
+ android/res/xml/usb_device_filter.xml   |   5 +-
+ android/src/ClaimedUsbPort.java         |  18 +++
+ android/src/DetectDeviceListener.java   |   1 +
+ android/src/OatHidPort.java             | 207 ++++++++++++++++++++++++
+ android/src/UsbSerialHelper.java        |  40 ++++-
+ android/src/UsbSerialPort.java          |   2 +-
+ build/driver.mk                         |   2 +
+ build/test.mk                           |   8 +-
+ src/Android/DetectDeviceListener.hpp    |   1 +
+ src/Device/Config.cpp                   |   7 +
+ src/Device/Config.hpp                   |   8 +
+ src/Device/Driver/OatHid.hpp            |   6 +
+ src/Device/Driver/OatHid/Device.cpp     |  63 ++++++++
+ src/Device/Driver/OatHid/Parser.cpp     |  35 ++++
+ src/Device/Driver/OatHid/Parser.hpp     |  33 ++++
+ src/Device/Port/ConfiguredPort.cpp      |   1 +
+ src/Device/Register.cpp                 |   2 +
+ src/Device/device.cpp                   |   1 +
+ src/Dialogs/Device/DeviceEditWidget.cpp |   2 +
+ src/Dialogs/Device/PortDataField.cpp    |   6 +-
+ src/Dialogs/Device/PortPicker.cpp       |   7 +
+ src/Profile/DeviceConfig.cpp            |   2 +
+ test/src/TestOatHid.cpp                 |  47 ++++++
+ 23 files changed, 491 insertions(+), 13 deletions(-)
+ create mode 100644 android/src/ClaimedUsbPort.java
+ create mode 100644 android/src/OatHidPort.java
+ create mode 100644 src/Device/Driver/OatHid.hpp
+ create mode 100644 src/Device/Driver/OatHid/Device.cpp
+ create mode 100644 src/Device/Driver/OatHid/Parser.cpp
+ create mode 100644 src/Device/Driver/OatHid/Parser.hpp
+ create mode 100644 test/src/TestOatHid.cpp
+
+diff --git a/android/res/xml/usb_device_filter.xml b/android/res/xml/usb_device_filter.xml
+index 28e55812e..f8a0ca3ce 100644
+--- a/android/res/xml/usb_device_filter.xml
++++ b/android/res/xml/usb_device_filter.xml
+@@ -13,7 +13,7 @@
+   <usb-device vendor-id="9025" product-id="32845"/> <!-- SoftRF Academy -->
+   <usb-device vendor-id="9114" product-id="51966"/> <!-- SoftRF Academy -->
+   <usb-device vendor-id="7504" product-id="24713"/> <!-- SoftRF ES -->
+-  <usb-device vendor-id="11914" product-id="10"/> <!-- SoftRF Lego -->
++  <usb-device vendor-id="11914" product-id="10"/> <!-- SoftRF Lego / Pico CDC -->
+   <usb-device vendor-id="11914" product-id="61450"/> <!-- SoftRF Lego -->
+   <usb-device vendor-id="5562" product-id="68"/> <!-- SoftRF Balkan -->
+   <usb-device vendor-id="12346" product-id="4097"/> <!-- SoftRF Eco -->
+@@ -38,4 +38,7 @@
+   <usb-device vendor-id="1659" product-id="8963"/> <!-- PL2303 -->
+ 
+   <usb-device vendor-id="5446" product-id="423"/> <!-- U-BLOX 7 USB GPS -->
++
++  <!-- OAT HID probe.  Not a serial id: do not add 0x0A01 to UsbSerialHelper.supported_ids. -->
++  <usb-device vendor-id="11914" product-id="2561"/> <!-- 2E8A:0A01 -->
+ </resources>
+diff --git a/android/src/ClaimedUsbPort.java b/android/src/ClaimedUsbPort.java
+new file mode 100644
+index 000000000..6f85eaaad
+--- /dev/null
++++ b/android/src/ClaimedUsbPort.java
+@@ -0,0 +1,18 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++// Copyright The XCSoar Project
++
++package org.xcsoar;
++
++import android.hardware.usb.UsbDevice;
++import android.hardware.usb.UsbManager;
++
++/**
++ * A USB port the native code has claimed: serial or the OAT HID probe.
++ */
++interface ClaimedUsbPort extends AndroidPort {
++  boolean isOpen();
++
++  void open(UsbManager manager, UsbDevice device, int iface);
++
++  void onDisconnect();
++}
+diff --git a/android/src/DetectDeviceListener.java b/android/src/DetectDeviceListener.java
+index 9e7e7aaf2..ef9c5d11a 100644
+--- a/android/src/DetectDeviceListener.java
++++ b/android/src/DetectDeviceListener.java
+@@ -12,6 +12,7 @@ interface DetectDeviceListener {
+   static final int TYPE_BLUETOOTH_CLASSIC = 2;
+   static final int TYPE_BLUETOOTH_LE = 3;
+   static final int TYPE_USB_SERIAL = 4;
++  static final int TYPE_USB_HID = 5;
+ 
+   static final long FEATURE_BLE_SERIAL = 0x1;
+   static final long FEATURE_HEART_RATE = 0x2;
+diff --git a/android/src/OatHidPort.java b/android/src/OatHidPort.java
+new file mode 100644
+index 000000000..887191120
+--- /dev/null
++++ b/android/src/OatHidPort.java
+@@ -0,0 +1,207 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++// Copyright The XCSoar Project
++
++package org.xcsoar;
++
++import android.hardware.usb.UsbConstants;
++import android.hardware.usb.UsbDevice;
++import android.hardware.usb.UsbDeviceConnection;
++import android.hardware.usb.UsbEndpoint;
++import android.hardware.usb.UsbInterface;
++import android.hardware.usb.UsbManager;
++import android.os.Build;
++
++import android.annotation.TargetApi;
++
++import java.util.Arrays;
++
++/**
++ * Interrupt-IN reader for the OAT probe (USB 2E8A:0A01).  This is not
++ * a serial port: the four-byte HID report is passed through as-is.
++ */
++@TargetApi(Build.VERSION_CODES.HONEYCOMB_MR1)
++public final class OatHidPort implements ClaimedUsbPort {
++  private final UsbSerialHelper.UsbDeviceInterface parent;
++  private UsbDeviceConnection connection;
++  private UsbInterface claimed;
++  private PortListener portListener;
++  private InputListener inputListener;
++  private volatile int state = STATE_LIMBO;
++  private volatile boolean running;
++  private Thread thread;
++  private final SafeDestruct safeDestruct = new SafeDestruct();
++
++  public OatHidPort(UsbSerialHelper.UsbDeviceInterface parent) {
++    this.parent = parent;
++  }
++
++  @Override
++  public synchronized boolean isOpen() {
++    return connection != null;
++  }
++
++  private static UsbEndpoint interruptIn(UsbInterface iface) {
++    for (int i = 0; i < iface.getEndpointCount(); ++i) {
++      UsbEndpoint endpoint = iface.getEndpoint(i);
++      if (endpoint.getDirection() == UsbConstants.USB_DIR_IN &&
++          endpoint.getType() == UsbConstants.USB_ENDPOINT_XFER_INT)
++        return endpoint;
++    }
++    return null;
++  }
++
++  @Override
++  public synchronized void open(UsbManager manager, UsbDevice device,
++                                int iface) {
++    connection = manager.openDevice(device);
++    if (connection == null) {
++      setState(STATE_FAILED);
++      return;
++    }
++
++    UsbInterface usbInterface = device.getInterface(iface);
++    UsbEndpoint endpoint = interruptIn(usbInterface);
++    if (endpoint == null || !connection.claimInterface(usbInterface, true)) {
++      connection.close();
++      connection = null;
++      setState(STATE_FAILED);
++      return;
++    }
++
++    claimed = usbInterface;
++    running = true;
++    final UsbDeviceConnection openConnection = connection;
++    thread = new Thread(() -> readLoop(openConnection, endpoint), "OatHid");
++    thread.start();
++    setState(STATE_READY);
++  }
++
++  private void readLoop(UsbDeviceConnection openConnection,
++                        UsbEndpoint endpoint) {
++    final byte[] buffer =
++      new byte[Math.max(endpoint.getMaxPacketSize(), 4)];
++
++    while (running) {
++      /* a timeout is the idle gap between 10 s reports, not a fault */
++      final int n = openConnection.bulkTransfer(endpoint, buffer,
++                                                buffer.length, 1000);
++      if (!running || n <= 0)
++        continue;
++
++      deliver(Arrays.copyOf(buffer, n));
++    }
++  }
++
++  private void deliver(byte[] data) {
++    InputListener listener = inputListener;
++    if (listener != null && safeDestruct.increment()) {
++      try {
++        listener.dataReceived(data, data.length);
++      } finally {
++        safeDestruct.decrement();
++      }
++    }
++  }
++
++  @Override
++  public synchronized void close() {
++    parent.portClosed(this);
++
++    running = false;
++    setState(STATE_FAILED);
++    safeDestruct.beginShutdown();
++
++    Thread reader = thread;
++    thread = null;
++    if (reader != null) {
++      reader.interrupt();
++      try {
++        reader.join(1500);
++      } catch (InterruptedException ignored) {
++        Thread.currentThread().interrupt();
++      }
++    }
++
++    if (connection != null) {
++      if (claimed != null)
++        connection.releaseInterface(claimed);
++      connection.close();
++      connection = null;
++      claimed = null;
++    }
++
++    safeDestruct.finishShutdown();
++  }
++
++  @Override
++  public void onDisconnect() {
++    error("Disconnected");
++  }
++
++  @Override
++  public void setListener(PortListener listener) {
++    portListener = listener;
++  }
++
++  @Override
++  public void setInputListener(InputListener listener) {
++    inputListener = listener;
++  }
++
++  @Override
++  public int getState() {
++    return state;
++  }
++
++  @Override
++  public boolean drain() {
++    return false;
++  }
++
++  @Override
++  public int getBaudRate() {
++    return 0;
++  }
++
++  @Override
++  public boolean setBaudRate(int baud) {
++    return true;
++  }
++
++  @Override
++  public int write(byte[] data, int length) {
++    return -1;
++  }
++
++  private void stateChanged() {
++    PortListener listener = portListener;
++    if (listener != null && safeDestruct.increment()) {
++      try {
++        listener.portStateChanged();
++      } finally {
++        safeDestruct.decrement();
++      }
++    }
++  }
++
++  private void setState(int newState) {
++    if (newState == state)
++      return;
++
++    state = newState;
++    stateChanged();
++  }
++
++  private void error(String msg) {
++    state = STATE_FAILED;
++
++    PortListener listener = portListener;
++    if (listener != null && safeDestruct.increment()) {
++      try {
++        listener.portError(msg);
++      } finally {
++        safeDestruct.decrement();
++      }
++    }
++  }
++}
+diff --git a/android/src/UsbSerialHelper.java b/android/src/UsbSerialHelper.java
+index aac855065..9110bd40a 100644
+--- a/android/src/UsbSerialHelper.java
++++ b/android/src/UsbSerialHelper.java
+@@ -139,7 +139,7 @@ public final class UsbSerialHelper extends BroadcastReceiver {
+      * native code.  It may be waiting for permission from the
+      * UsbManager, or it may already be open.
+      */
+-    public UsbSerialPort port;
++    public ClaimedUsbPort port;
+ 
+     public UsbDeviceInterface(UsbDevice dev_, int iface_) {
+       device = dev_;
+@@ -186,7 +186,9 @@ public final class UsbSerialHelper extends BroadcastReceiver {
+       if (port != null)
+         throw new IOException("Port already occupied");
+ 
+-      port = new UsbSerialPort(this, baud);
++      port = isOatHid(device)
++        ? new OatHidPort(this)
++        : new UsbSerialPort(this, baud);
+       if (usbmanager.hasPermission(device)) {
+         port.open(usbmanager, device, iface);
+       } else {
+@@ -204,7 +206,7 @@ public final class UsbSerialHelper extends BroadcastReceiver {
+     /**
+      * Called by UsbSerialPort::close().
+      */
+-    public synchronized void portClosed(UsbSerialPort _port) {
++    public synchronized void portClosed(ClaimedUsbPort _port) {
+       if (_port == port)
+         port = null;
+     }
+@@ -234,7 +236,18 @@ public final class UsbSerialHelper extends BroadcastReceiver {
+     return Arrays.binarySearch(devices, createDevice(vendorId, productId)) >= 0;
+   }
+ 
++  /**
++   * The OAT probe's HID identity.  It is not in #supported_ids: the
++   * serial opener must not claim it.
++   */
++  private static boolean isOatHid(UsbDevice device) {
++    return device.getVendorId() == 0x2e8a && device.getProductId() == 0x0a01;
++  }
++
+   private static boolean isSupported(UsbDevice device) {
++    if (isOatHid(device))
++      return true;
++
+     return UsbSerialDevice.isSupported(device) &&
+       exists(supported_ids, device.getVendorId(), device.getProductId());
+   }
+@@ -336,7 +349,11 @@ public final class UsbSerialHelper extends BroadcastReceiver {
+         continue;
+ 
+       int iclass = device.getInterface(iface).getInterfaceClass();
+-      if (iclass == UsbConstants.USB_CLASS_VENDOR_SPEC || iclass == UsbConstants.USB_CLASS_CDC_DATA) {
++      final boolean take = isOatHid(device)
++        ? iclass == UsbConstants.USB_CLASS_HID
++        : (iclass == UsbConstants.USB_CLASS_VENDOR_SPEC ||
++           iclass == UsbConstants.USB_CLASS_CDC_DATA);
++      if (take) {
+         UsbDeviceInterface deviface = new UsbDeviceInterface(device, iface);
+         interfaces.add(deviface);
+         broadcastDetectedDeviceInterface(deviface);
+@@ -422,16 +439,23 @@ public final class UsbSerialHelper extends BroadcastReceiver {
+ 
+     final String name = deviface.getDisplayName();
+ 
++    final int type = isOatHid(deviface.device)
++      ? DetectDeviceListener.TYPE_USB_HID
++      : DetectDeviceListener.TYPE_USB_SERIAL;
++
+     for (DetectDeviceListener l : detectListeners)
+-      l.onDeviceDetected(DetectDeviceListener.TYPE_USB_SERIAL, deviface.id, name, 0);
++      l.onDeviceDetected(type, deviface.id, name, 0);
+   }
+ 
+   public synchronized void addDetectDeviceListener(DetectDeviceListener l) {
+     detectListeners.add(l);
+ 
+-    for (UsbDeviceInterface iface : interfaces)
+-      l.onDeviceDetected(DetectDeviceListener.TYPE_USB_SERIAL, iface.id,
+-                         iface.getDisplayName(), 0);
++    for (UsbDeviceInterface iface : interfaces) {
++      final int type = isOatHid(iface.device)
++        ? DetectDeviceListener.TYPE_USB_HID
++        : DetectDeviceListener.TYPE_USB_SERIAL;
++      l.onDeviceDetected(type, iface.id, iface.getDisplayName(), 0);
++    }
+   }
+ 
+   public synchronized void removeDetectDeviceListener(DetectDeviceListener l) {
+diff --git a/android/src/UsbSerialPort.java b/android/src/UsbSerialPort.java
+index f71f9a9fe..143a58eeb 100644
+--- a/android/src/UsbSerialPort.java
++++ b/android/src/UsbSerialPort.java
+@@ -17,7 +17,7 @@ import java.util.Arrays;
+ 
+ @TargetApi(Build.VERSION_CODES.HONEYCOMB_MR1)
+ public final class UsbSerialPort
+-  implements AndroidPort, UsbSerialInterface.UsbReadCallback
++  implements ClaimedUsbPort, UsbSerialInterface.UsbReadCallback
+ {
+   private final UsbSerialHelper.UsbDeviceInterface parent;
+   private UsbDeviceConnection connection;
+diff --git a/build/driver.mk b/build/driver.mk
+index 15cb8600f..a21e9140a 100644
+--- a/build/driver.mk
++++ b/build/driver.mk
+@@ -142,6 +142,8 @@ DRIVER_SOURCES = \
+ 	$(DRIVER_SRC_DIR)/Leonardo.cpp \
+ 	$(DRIVER_SRC_DIR)/NmeaOut.cpp \
+ 	$(DRIVER_SRC_DIR)/OpenVario.cpp \
++	$(DRIVER_SRC_DIR)/OatHid/Parser.cpp \
++	$(DRIVER_SRC_DIR)/OatHid/Device.cpp \
+ 	$(DRIVER_SRC_DIR)/PosiGraph.cpp \
+ 	$(DRIVER_SRC_DIR)/XCOM760.cpp \
+ 	$(DRIVER_SRC_DIR)/ILEC.cpp \
+diff --git a/build/test.mk b/build/test.mk
+index f10909ebf..88639a6d0 100644
+--- a/build/test.mk
++++ b/build/test.mk
+@@ -88,7 +88,7 @@ TEST_NAMES = \
+ 	TestAngle TestARange \
+ 	TestGrahamScan \
+ 	TestUnits TestEarth TestSunEphemeris \
+-	TestValidity TestUTM TestSwitchState \
++	TestValidity TestOatHid TestUTM TestSwitchState \
+ 	TestWaypointReachability TestWaypointElevation TestBackupPaths \
+ 	TestTarArchive \
+ 	TestAllocatedGrid \
+@@ -1338,6 +1338,12 @@ TEST_VALIDITY_SOURCES = \
+ 	$(TEST_SRC_DIR)/TestValidity.cpp
+ $(eval $(call link-program,TestValidity,TEST_VALIDITY))
+ 
++TEST_OAT_HID_SOURCES = \
++	$(SRC)/Device/Driver/OatHid/Parser.cpp \
++	$(TEST_SRC_DIR)/tap.c \
++	$(TEST_SRC_DIR)/TestOatHid.cpp
++$(eval $(call link-program,TestOatHid,TEST_OAT_HID))
++
+ TEST_WAYPOINT_REACHABILITY_SOURCES = \
+ 	$(TEST_SRC_DIR)/tap.c \
+ 	$(TEST_SRC_DIR)/TestWaypointReachability.cpp
+diff --git a/src/Android/DetectDeviceListener.hpp b/src/Android/DetectDeviceListener.hpp
+index 65aa90fbb..cbcc91f2d 100644
+--- a/src/Android/DetectDeviceListener.hpp
++++ b/src/Android/DetectDeviceListener.hpp
+@@ -16,6 +16,7 @@ public:
+     BLUETOOTH_CLASSIC = 2,
+     BLUETOOTH_LE = 3,
+     USB_SERIAL = 4,
++    USB_HID = 5,
+   };
+ 
+   static constexpr uint64_t FEATURE_BLE_SERIAL = 0x1;
+diff --git a/src/Device/Config.cpp b/src/Device/Config.cpp
+index dcad82ae9..895b256f1 100644
+--- a/src/Device/Config.cpp
++++ b/src/Device/Config.cpp
+@@ -32,6 +32,7 @@ DeviceConfig::IsAvailable() const noexcept
+   case PortType::RFCOMM_SERVER:
+   case PortType::GLIDER_LINK:
+   case PortType::ANDROID_USB_SERIAL:
++  case PortType::ANDROID_USB_HID:
+     return IsAndroid();
+ 
+   case PortType::IOIOUART:
+@@ -79,6 +80,7 @@ DeviceConfig::ShouldReopenOnTimeout() const noexcept
+   case PortType::BLE_SERIAL:
+   case PortType::RFCOMM_SERVER:
+   case PortType::ANDROID_USB_SERIAL:
++  case PortType::ANDROID_USB_HID:
+   case PortType::IOIOUART:
+   case PortType::DROIDSOAR_V2:
+   case PortType::NUNCHUCK:
+@@ -298,6 +300,11 @@ DeviceConfig::GetPortName(char *buffer, size_t max_size) const noexcept
+                  _("USB serial"), path.c_str());
+     return buffer;
+ 
++  case PortType::ANDROID_USB_HID:
++    StringFormat(buffer, max_size, "%s: %s",
++                 _("USB HID"), path.c_str());
++    return buffer;
++
+   case PortType::SPECTATE_FILE:
+     StringFormat(buffer, max_size, "%s", path.c_str());
+     return buffer;
+diff --git a/src/Device/Config.hpp b/src/Device/Config.hpp
+index 3d7ff5a2f..56a8bac52 100644
+--- a/src/Device/Config.hpp
++++ b/src/Device/Config.hpp
+@@ -101,6 +101,12 @@ struct DeviceConfig {
+      * Poll a Condor 3 Spectate.json file for multiplayer traffic.
+      */
+     SPECTATE_FILE,
++
++    /**
++     * USB HID outside-air-temperature probe on Android (2E8A:0A01).
++     * Not a serial port: no baud rate.
++     */
++    ANDROID_USB_HID,
+   };
+ 
+   /**
+@@ -371,6 +377,7 @@ struct DeviceConfig {
+     case PortType::PTY:
+     case PortType::UDP_LISTENER:
+     case PortType::ANDROID_USB_SERIAL:
++    case PortType::ANDROID_USB_HID:
+     case PortType::SPECTATE_FILE:
+       break;
+     }
+@@ -426,6 +433,7 @@ struct DeviceConfig {
+     case PortType::PTY:
+     case PortType::UDP_LISTENER:
+     case PortType::ANDROID_USB_SERIAL:
++    case PortType::ANDROID_USB_HID:
+     case PortType::SPECTATE_FILE:
+       return true;
+     }
+diff --git a/src/Device/Driver/OatHid.hpp b/src/Device/Driver/OatHid.hpp
+new file mode 100644
+index 000000000..a05e58948
+--- /dev/null
++++ b/src/Device/Driver/OatHid.hpp
+@@ -0,0 +1,6 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++// Copyright The XCSoar Project
++
++#pragma once
++
++extern const struct DeviceRegister oat_hid_driver;
+diff --git a/src/Device/Driver/OatHid/Device.cpp b/src/Device/Driver/OatHid/Device.cpp
+new file mode 100644
+index 000000000..e2c86b8fb
+--- /dev/null
++++ b/src/Device/Driver/OatHid/Device.cpp
+@@ -0,0 +1,63 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++// Copyright The XCSoar Project
++
++#include "Device/Driver/OatHid.hpp"
++#include "Device/Driver.hpp"
++#include "Device/Driver/OatHid/Parser.hpp"
++#include "NMEA/Info.hpp"
++
++#include <array>
++
++class OatHidDevice final : public AbstractDevice {
++  std::array<std::byte, 4> pending{};
++  std::size_t pending_size = 0;
++
++public:
++  /* virtual methods from class Device */
++  bool DataReceived(std::span<const std::byte> s,
++                    NMEAInfo &info) noexcept override;
++};
++
++bool
++OatHidDevice::DataReceived(std::span<const std::byte> s,
++                           NMEAInfo &info) noexcept
++{
++  bool recognized = false;
++
++  for (const std::byte byte : s) {
++    pending[pending_size++] = byte;
++    if (pending_size < pending.size())
++      continue;
++
++    pending_size = 0;
++    const OatHid::Report report = OatHid::Parse(pending);
++    if (!report.recognized)
++      continue;
++
++    /* a fault still means the probe is connected */
++    info.alive.Update(info.clock);
++    recognized = true;
++
++    if (!report.ok)
++      continue;
++
++    info.temperature =
++      Temperature::FromCelsius(report.hundredths / 100.);
++    info.temperature_available.Update(info.clock);
++  }
++
++  return recognized;
++}
++
++static Device *
++OatHidCreateOnPort(const DeviceConfig &, Port &)
++{
++  return new OatHidDevice();
++}
++
++const struct DeviceRegister oat_hid_driver = {
++  "OatHid",
++  "OAT HID",
++  DeviceRegister::RAW_GPS_DATA | DeviceRegister::NO_TIMEOUT,
++  OatHidCreateOnPort,
++};
+diff --git a/src/Device/Driver/OatHid/Parser.cpp b/src/Device/Driver/OatHid/Parser.cpp
+new file mode 100644
+index 000000000..e0bdb2224
+--- /dev/null
++++ b/src/Device/Driver/OatHid/Parser.cpp
+@@ -0,0 +1,35 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++// Copyright The XCSoar Project
++
++#include "Parser.hpp"
++
++namespace OatHid {
++
++static constexpr uint8_t REPORT_ID = 1;
++static constexpr uint8_t STATUS_OK = 0;
++static constexpr uint8_t STATUS_FAULT = 1;
++static constexpr std::size_t REPORT_SIZE = 4;
++
++Report
++Parse(std::span<const std::byte> bytes) noexcept
++{
++  Report report;
++  if (bytes.size() != REPORT_SIZE)
++    return report;
++
++  if (static_cast<uint8_t>(bytes[0]) != REPORT_ID)
++    return report;
++
++  const uint8_t status = static_cast<uint8_t>(bytes[3]);
++  if (status != STATUS_OK && status != STATUS_FAULT)
++    return report;
++
++  const unsigned lo = static_cast<uint8_t>(bytes[1]);
++  const unsigned hi = static_cast<uint8_t>(bytes[2]);
++  report.recognized = true;
++  report.ok = status == STATUS_OK;
++  report.hundredths = static_cast<int16_t>(lo | (hi << 8));
++  return report;
++}
++
++} // namespace OatHid
+diff --git a/src/Device/Driver/OatHid/Parser.hpp b/src/Device/Driver/OatHid/Parser.hpp
+new file mode 100644
+index 000000000..d4b5e907a
+--- /dev/null
++++ b/src/Device/Driver/OatHid/Parser.hpp
+@@ -0,0 +1,33 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++// Copyright The XCSoar Project
++
++#pragma once
++
++#include <cstddef>
++#include <cstdint>
++#include <span>
++
++/**
++ * Vendor HID report from the OAT probe (USB 2E8A:0A01).
++ *
++ * Four bytes: report id 1, int16 little-endian hundredths of a degree
++ * Celsius, then a status byte.  Status 0 is a reading.  Status 1 is a
++ * sensor fault; the temperature bytes are then not a reading.
++ */
++namespace OatHid {
++
++struct Report {
++  /** The four bytes are a report this probe sends. */
++  bool recognized = false;
++
++  /** Status is 0, so #hundredths is a temperature. */
++  bool ok = false;
++
++  int16_t hundredths = 0;
++};
++
++[[nodiscard]]
++Report
++Parse(std::span<const std::byte> bytes) noexcept;
++
++} // namespace OatHid
+diff --git a/src/Device/Port/ConfiguredPort.cpp b/src/Device/Port/ConfiguredPort.cpp
+index e1a38d933..cde83efc3 100644
+--- a/src/Device/Port/ConfiguredPort.cpp
++++ b/src/Device/Port/ConfiguredPort.cpp
+@@ -187,6 +187,7 @@ OpenPortInternal(EventLoop &event_loop, Cares::Channel &cares,
+   }
+ 
+   case DeviceConfig::PortType::ANDROID_USB_SERIAL:
++  case DeviceConfig::PortType::ANDROID_USB_HID:
+ #ifdef ANDROID
+     if (config.path.empty())
+       throw std::runtime_error("No name configured");
+diff --git a/src/Device/Register.cpp b/src/Device/Register.cpp
+index 6e711e322..ea42cf66d 100644
+--- a/src/Device/Register.cpp
++++ b/src/Device/Register.cpp
+@@ -38,6 +38,7 @@
+ #include "Device/Driver/LevilAHRS_G.hpp"
+ #include "Device/Driver/BlueFlyVario.hpp"
+ #include "Device/Driver/OpenVario.hpp"
++#include "Device/Driver/OatHid.hpp"
+ #include "Device/Driver/Larus.hpp"
+ #include "Device/Driver/Vaulter.hpp"
+ #include "Device/Driver/ATR833/Register.hpp"
+@@ -100,6 +101,7 @@ static const struct DeviceRegister *const driver_list[] = {
+   &loe_fgren_driver,
+   &lx160_driver,
+   &gdl90_driver,
++  &oat_hid_driver,
+   nullptr
+ };
+ 
+diff --git a/src/Device/device.cpp b/src/Device/device.cpp
+index 11c6d5f90..574320894 100644
+--- a/src/Device/device.cpp
++++ b/src/Device/device.cpp
+@@ -34,6 +34,7 @@ DeviceConfigOverlaps(const DeviceConfig &a, const DeviceConfig &b)
+   case DeviceConfig::PortType::SERIAL:
+   case DeviceConfig::PortType::PTY:
+   case DeviceConfig::PortType::ANDROID_USB_SERIAL:
++  case DeviceConfig::PortType::ANDROID_USB_HID:
+   case DeviceConfig::PortType::SPECTATE_FILE:
+     return a.path.equals(b.path);
+ 
+diff --git a/src/Dialogs/Device/DeviceEditWidget.cpp b/src/Dialogs/Device/DeviceEditWidget.cpp
+index d4d1dd805..eaeb9f10f 100644
+--- a/src/Dialogs/Device/DeviceEditWidget.cpp
++++ b/src/Dialogs/Device/DeviceEditWidget.cpp
+@@ -51,6 +51,7 @@ FillTCPPorts(DataFieldEnum &dfe) noexcept
+ {
+   dfe.addEnumText("55278 (Condor UDP)", 55278);
+   dfe.addEnumText("4353", 4353);
++  dfe.addEnumText("4354 (OAT HID)", 4354);
+   dfe.addEnumText("10110", 10110);
+   dfe.addEnumText("4352", 4352);
+   dfe.addEnumText("2000", 2000);
+@@ -540,6 +541,7 @@ FinishPortField(DeviceConfig &config, const DataFieldEnum &df) noexcept
+   case DeviceConfig::PortType::SERIAL:
+   case DeviceConfig::PortType::PTY:
+   case DeviceConfig::PortType::ANDROID_USB_SERIAL:
++  case DeviceConfig::PortType::ANDROID_USB_HID:
+     /* Serial Port */
+     if (new_type == config.port_type &&
+         StringIsEqual(config.path, df.GetAsString()))
+diff --git a/src/Dialogs/Device/PortDataField.cpp b/src/Dialogs/Device/PortDataField.cpp
+index a0cfca4d7..1e6e5263c 100644
+--- a/src/Dialogs/Device/PortDataField.cpp
++++ b/src/Dialogs/Device/PortDataField.cpp
+@@ -231,9 +231,10 @@ FillAndroidUsbSerialPorts([[maybe_unused]] DataFieldEnum &df,
+                           [[maybe_unused]] const DeviceConfig &config) noexcept
+ {
+ #ifdef ANDROID
+-  if (config.port_type == DeviceConfig::PortType::ANDROID_USB_SERIAL &&
++  if ((config.port_type == DeviceConfig::PortType::ANDROID_USB_SERIAL ||
++       config.port_type == DeviceConfig::PortType::ANDROID_USB_HID) &&
+       !config.path.empty())
+-    SetPort(df, DeviceConfig::PortType::ANDROID_USB_SERIAL, config.path);
++    SetPort(df, config.port_type, config.path);
+ #endif
+ }
+ 
+@@ -306,6 +307,7 @@ SetPort(DataFieldEnum &df, const DeviceConfig &config) noexcept
+ 
+   case DeviceConfig::PortType::SERIAL:
+   case DeviceConfig::PortType::ANDROID_USB_SERIAL:
++  case DeviceConfig::PortType::ANDROID_USB_HID:
+     SetPort(df, config.port_type, config.path);
+     return;
+ 
+diff --git a/src/Dialogs/Device/PortPicker.cpp b/src/Dialogs/Device/PortPicker.cpp
+index a88963b3d..023fb5e4f 100644
+--- a/src/Dialogs/Device/PortPicker.cpp
++++ b/src/Dialogs/Device/PortPicker.cpp
+@@ -58,6 +58,9 @@ private:
+     case DeviceConfig::PortType::ANDROID_USB_SERIAL:
+       return _("USB serial");
+ 
++    case DeviceConfig::PortType::ANDROID_USB_HID:
++      return _("USB HID");
++
+     default:
+       return nullptr;
+     }
+@@ -247,6 +250,10 @@ PortPickerWidget::OnDeviceDetected(Type type, const char *address,
+   case Type::USB_SERIAL:
+     port_type = DeviceConfig::PortType::ANDROID_USB_SERIAL;
+     break;
++
++  case Type::USB_HID:
++    port_type = DeviceConfig::PortType::ANDROID_USB_HID;
++    break;
+   }
+ 
+   {
+diff --git a/src/Profile/DeviceConfig.cpp b/src/Profile/DeviceConfig.cpp
+index 19c9f0763..2d7e572e0 100644
+--- a/src/Profile/DeviceConfig.cpp
++++ b/src/Profile/DeviceConfig.cpp
+@@ -37,6 +37,7 @@ static const char *const port_type_strings[] = {
+   "glider_link",
+   "android_usb_serial",
+   "spectate_file",
++  "android_usb_hid",
+   NULL
+ };
+ 
+@@ -153,6 +154,7 @@ Profile::GetDeviceConfig(const ProfileMap &map, unsigned n,
+     LoadPath(map, config, n);
+   } else if ((!have_port_type ||
+               config.port_type == DeviceConfig::PortType::ANDROID_USB_SERIAL ||
++              config.port_type == DeviceConfig::PortType::ANDROID_USB_HID ||
+               config.port_type == DeviceConfig::PortType::SERIAL) &&
+              !LoadPath(map, config, n) && LoadPortIndex(map, config, n))
+     config.port_type = DeviceConfig::PortType::SERIAL;
+diff --git a/test/src/TestOatHid.cpp b/test/src/TestOatHid.cpp
+new file mode 100644
+index 000000000..43ce54e03
+--- /dev/null
++++ b/test/src/TestOatHid.cpp
+@@ -0,0 +1,47 @@
++// SPDX-License-Identifier: GPL-2.0-or-later
++// Copyright The XCSoar Project
++
++#include "Device/Driver/OatHid/Parser.hpp"
++#include "TestUtil.hpp"
++
++#include <array>
++
++static std::array<std::byte, 4>
++Report(unsigned b0, unsigned b1, unsigned b2, unsigned b3) noexcept
++{
++  return {
++    std::byte{static_cast<unsigned char>(b0)},
++    std::byte{static_cast<unsigned char>(b1)},
++    std::byte{static_cast<unsigned char>(b2)},
++    std::byte{static_cast<unsigned char>(b3)},
++  };
++}
++
++int
++main()
++{
++  plan_tests(11);
++
++  /* 01 0E 06 00 -> 15.50 C */
++  const auto warm = OatHid::Parse(Report(0x01, 0x0e, 0x06, 0x00));
++  ok1(warm.recognized);
++  ok1(warm.ok);
++  ok1(warm.hundredths == 1550);
++
++  /* -35.00 C, status ok */
++  const auto cold = OatHid::Parse(Report(0x01, 0x54, 0xf2, 0x00));
++  ok1(cold.recognized);
++  ok1(cold.ok);
++  ok1(cold.hundredths == -3500);
++
++  /* status 1: the temperature bytes are not a reading */
++  const auto fault = OatHid::Parse(Report(0x01, 0x0e, 0x06, 0x01));
++  ok1(fault.recognized);
++  ok1(!fault.ok);
++
++  ok1(!OatHid::Parse(Report(0x02, 0x0e, 0x06, 0x00)).recognized);
++  ok1(!OatHid::Parse(Report(0x01, 0x0e, 0x06, 0x02)).recognized);
++  ok1(!OatHid::Parse(std::span<const std::byte>{}).recognized);
++
++  return exit_status();
++}
+-- 
+2.47.3
+
