@@ -31,11 +31,11 @@ In XCSoar:
 | Check | Action |
 |-------|--------|
 | Cable | Must support data |
-| Allowlist | Firmware must use VID/PID `2E8A:000A` (this repo does) |
+| Identity | Firmware must be VID/PID `2E8A:0A01` (HID). `000A` is the old Pico serial ID. |
 | Device already used | Unplug other USB-serial gadgets and retry |
 | XCSoar version | Use a recent build that includes the Pico SoftRF Lego USB IDs |
 
-Still missing? On a PC, confirm `lsusb` / Device Manager shows `2E8A:000A`. If the XIAO shows a different ID, reflash with this project's `platformio.ini`.
+Still missing? On a PC, confirm the device is `2E8A:0A01`. If it still shows `000A`, reflash this `hid` branch.
 
 ## Protocol reminder
 

@@ -26,6 +26,6 @@ In XCSoar: driver **OpenVario**. InfoBox **Outside air temperature**.
 
 ## USB on Android / Stefly
 
-Firmware forces USB ID **2E8A:000A** (already on XCSoar Android allowlist).
+Firmware USB ID is **2E8A:0A01** (vendor HID). Not Pico serial `000A`.
 
 A **USB-C (XIAO) to USB-A** data cable is required for typical tablet USB-A ports.

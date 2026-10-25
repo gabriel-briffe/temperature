@@ -44,12 +44,14 @@ Or in the IDE: **Upload** button.
 
 ## USB identity (already set)
 
-`platformio.ini` forces:
+`platformio.ini` sets (via Earle Philhower board keys, not `-DUSB_PID`):
 
 - VID `0x2E8A`
-- PID `0x000A`
+- PID `0x0A01`
+- Manufacturer `OAT`
+- Product `PT1000 OAT`
 
-so Stefly / XCSoar Android recognize the device.
+`2E8A:000A` is the Seeed / Pico CDC identity. Leave that behind so XCSoar can list this as USB HID.
 
 ## Libraries
 
