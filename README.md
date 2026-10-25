@@ -45,7 +45,17 @@ Not in that number: soldering iron, solder, heat shrink, USB-C to USB-A data cab
 
 ## Does it work?
 
-Yes. I have seen live OAT in **XCSoar on Mac**, **XCSoar on an Android phone** (USB-C to USB-C), and **XCSoar on Stefly**. Not tested yet on other platforms (Windows, iOS, Linux, Kobo, …).
+Yes, both options. What I actually tested:
+
+| Option | Tested on | Result |
+|--------|-----------|--------|
+| 1 - Serial, no fork (without the 2-minute delay) | **Pixel 9** (Android, USB-C to USB-C), **Stefly**, **macOS** | Live OAT in XCSoar on all three |
+| 1 - Serial, with the 2-minute delay (`firmware/serial/`) | - | **Not tested yet** |
+| 2 - HID, modified XCSoar | **Stefly** only | Probe stays plugged, Stefly boots normally, OAT shows as soon as XCSoar opens |
+
+Option 1 as it sits in `firmware/serial/` includes the untested delay. Until I try it, boot Stefly with the probe unplugged, then plug it in.
+
+Not tested yet on other platforms (Windows, iOS, Linux, Kobo, ...).
 
 Ice-cube glass (probe tip only): **0.1 C**. Room air was about 15.5 C / 1060 Ohm, which is what a PT1000 should read.
 
