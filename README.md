@@ -9,10 +9,10 @@ I wanted a temperature probe for the Stefly Nav for winter flights. Same hardwar
 | XCSoar | Stock XCSoar, no changes | Modified XCSoar (patch in [xcsoar/](xcsoar/)) |
 | USB identity | USB serial `2E8A:000A` | Vendor HID `2E8A:0A01` |
 | Data | `$POV,T` at 115200, driver **OpenVario** | 4-byte HID report, driver **OAT HID** |
-| Stefly boot | Android does not finish booting with the probe plugged. Plug it **after** boot. | Probe stays plugged. Boots fine. |
+| Stefly boot | Android doesn't finish booting with the probe plugged in, so the firmware waits 2 minutes before enabling USB (untested). If that doesn't work, plug it in after boot (tested, works). | Probe stays plugged. Boots fine. |
 | Firmware | [firmware/serial/](firmware/serial/) | [firmware/hid/](firmware/hid/) |
 
-- **Option 1** if you want stock XCSoar and don't mind plugging the probe after Android has booted. The firmware waits 2 minutes before it starts USB, to let Stefly boot with the probe plugged. I have **not tested** that delay.
+- **Option 1** if you want stock XCSoar. The firmware waits 2 minutes before enabling USB, to let Stefly boot with the probe plugged. I have **not tested** that delay. Fallback that works: plug the probe in after Android has booted.
 - **Option 2** if you want the probe plugged in all the time. You need an XCSoar build with the HID driver: [docs/hid-xcsoar.md](docs/hid-xcsoar.md) and [manual/07-xcsoar-modifications.md](manual/07-xcsoar-modifications.md).
 
 Step-by-step for both: **[manual/README.md](manual/README.md)**.

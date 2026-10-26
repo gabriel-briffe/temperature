@@ -10,7 +10,7 @@ Hardware I used:
 
 Two options, same hardware:
 
-- **Option 1 - serial.** Firmware emits `$POV,T,<degC>*CS` over USB serial. Stock XCSoar, driver **OpenVario**. Plug the probe after Android has booted.
+- **Option 1 - serial.** Firmware emits `$POV,T,<degC>*CS` over USB serial. Stock XCSoar, driver **OpenVario**. Firmware waits 2 minutes before enabling USB so Android can boot (untested). Fallback: plug the probe after boot.
 - **Option 2 - HID.** Firmware sends a vendor HID report. Probe stays plugged. Needs a modified XCSoar, driver **OAT HID**.
 
 How to pick: [../README.md](../README.md).
@@ -29,7 +29,7 @@ How to pick: [../README.md](../README.md).
 | 3 | [03 - Wiring](03-wiring.md) | both | Connect XIAO and ADA3648 |
 | 4 | [04 - Firmware](04-firmware.md) | both | Flash `firmware/serial` or `firmware/hid` |
 | 5 | [05 - Bench test](05-bench-test.md) | both | Verify output on a computer |
-| 6 | [06 - XCSoar setup (serial)](06-xcsoar-stefly.md) | 1 | USB serial, OpenVario, plug after boot |
+| 6 | [06 - XCSoar setup (serial)](06-xcsoar-stefly.md) | 1 | USB serial, OpenVario, 2-minute USB delay or plug after boot |
 | 7 | [07 - XCSoar modifications](07-xcsoar-modifications.md) | 2 | What XCSoar needs to read the HID probe |
 | 8 | [08 - XCSoar setup (HID)](08-xcsoar-stefly-hid.md) | 2 | USB HID, OAT HID driver |
 | 9 | [09 - Mount & calibrate](09-mount-calibrate.md) | both | Install in the glider |
